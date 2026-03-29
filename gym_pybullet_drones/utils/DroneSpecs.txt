@@ -1,0 +1,100 @@
+Example 1 (small quadcopter):
+• Mass: 0.35
+• Arm length: 0.08
+• MMOI x: 2.5*10^-4
+• MMOI y: 2.5*10^-4
+• MMOI z: 4*10^-4
+• J: [2.5*10^-4, 2.5*10^-4, 4*10^-4]
+• J_inv: should be calculated automatically by the code
+• Kf: (4*10^-8)^2 * 7000 * 7000
+• Km: 0.015 * (4*10^-8)^2 * 7000 * 7000
+• max_speed_km: 1.9
+• ground coeff: ?
+• propeller radius: 0.08
+• drag coeff xy: ?
+• drag coeff z: ?
+• drag coeff: 0.2
+• downwash 1: ?
+• downwash 2: ?
+• downwash 3: ?
+
+Example 2 (large quadcopter):
+• Mass: 0.85
+• Arm length: 0.18
+• MMOI x: 3.1*10^-3
+• MMOI y: 3.1*10^-3
+• MMOI z: 5*10^-3
+• J: [3.1*10^-3, 3.1*10^-3, 5*10^-3]
+• J_inv: should be calculated automatically by the code
+• Kf: (8*10^-6)^2 * 1000 * 1000
+• Km: 0.008*(8*10^-6)^2 * 1000 * 1000
+• max_speed_km: 1
+• ground coeff: ?
+• propeller radius: 0.17
+• drag coeff xy: ?
+• drag coeff z: ?
+• drag coeff: 0.64
+• downwash 1: ?
+• downwash 2: ?
+• downwash 3: ?
+
+Example 3 (mid-size quadcopter):
+• Mass: 0.55
+• Arm length: 0.107
+• MMOI x: 1.5*10^-3
+• MMOI y: 1.5*10^-3
+• MMOI z: 4*10^-3
+• J: [1.5*10^-3, 1.5*10^-3, 5*10^-3]
+• J_inv: should be calculated automatically by the code
+• Kf: (7.5*10^-7)^2 * 4000 * 4000
+• Km: 0.01*(7.5*10^-7)^2 * 4000 * 4000
+• max_speed_km: 1.5
+• ground coeff: ?
+• propeller radius: 0.11
+• drag coeff xy: ?
+• drag coeff z: ?
+• drag coeff: 0.34
+• downwash 1: ?
+• downwash 2: ?
+• downwash 3: ?
+
+Example 4 (another mid-size quadcopter):
+• Mass: 0.45
+• Arm length: 0.087
+• MMOI x: 2*10^-3
+• MMOI y: 2*10^-3
+• MMOI z: 3*10^-3
+• J: [1.5*10^-3, 1.5*10^-3, 5*10^-3]
+• J_inv: should be calculated automatically by the code
+• Kf: (4.3*10^-7)^2 * 5000 * 5000
+• Km: 0.012*(4.3*10^-7)^2 * 5000 * 5000
+• max_speed_km: 1.6
+• ground coeff: ?
+• propeller radius: ?
+• drag coeff xy: ?
+• drag coeff z: ?
+• drag coeff: 0.34
+• downwash 1: ?
+• downwash 2: ?
+• downwash 3: ?
+
+Example 5 (yet another mid-size quadcopter):
+• Mass: 0.65
+• Arm length: 0.127
+• MMOI x: 1.5*10^-3
+• MMOI y: 1.5*10^-3
+• MMOI z: 5*10^-3
+• J: [1.5*10^-3, 1.5*10^-3, 5*10^-3]
+• J_inv: should be calculated automatically by the code
+• Kf: (2.3*10^-6)^2 * 3000 * 3000
+• Km: 0.009*(2.3*10^-6)^2 * 3000 * 3000
+• max_speed_km: 1.3
+• ground coeff: ?
+• propeller radius: 0.12
+• drag coeff xy: ?
+• drag coeff z: ?
+• drag coeff: 0.48
+• downwash 1: ?
+• downwash 2: ?
+• downwash 3: ?
+
