@@ -34,9 +34,7 @@ class MultiModelBaseAviary(gym.Env):
                  ctrl_freq: int = 240,
                  gui=False,
                  record=False,
-                 obstacles=False,
                  user_debug_gui=True,
-                 vision_attributes=False,
                  output_folder='results'
                  ):
         """Initialization of a multi-model aviary environment.
@@ -69,9 +67,6 @@ class MultiModelBaseAviary(gym.Env):
             Whether to add obstacles to the simulation.
         user_debug_gui : bool, optional
             Whether to draw the drones' axes and the GUI RPMs sliders.
-        vision_attributes : bool, optional
-            Whether to allocate the attributes needed by vision-based aviary subclasses.
-
         """
         if num_drones != 1:
             raise ValueError('[ERROR] MultiModelBaseAviary supports num_drones=1 only.')
@@ -116,27 +111,12 @@ class MultiModelBaseAviary(gym.Env):
         self.GUI = gui
         self.RECORD = record
         self.PHYSICS = physics
-        self.OBSTACLES = obstacles
         self.USER_DEBUG = user_debug_gui
         self.OUTPUT_FOLDER = output_folder
         #### Create attributes for vision tasks ####################
         if self.RECORD:
             self.ONBOARD_IMG_PATH = os.path.join(self.OUTPUT_FOLDER, "recording_" + datetime.now().strftime("%m.%d.%Y_%H.%M.%S"))
             os.makedirs(os.path.dirname(self.ONBOARD_IMG_PATH), exist_ok=True)
-        self.VISION_ATTR = vision_attributes
-        if self.VISION_ATTR:
-            self.IMG_RES = np.array([64, 48])
-            self.IMG_FRAME_PER_SEC = 24
-            self.IMG_CAPTURE_FREQ = int(self.PYB_FREQ/self.IMG_FRAME_PER_SEC)
-            self.rgb = np.zeros(((self.NUM_DRONES, self.IMG_RES[1], self.IMG_RES[0], 4)))
-            self.dep = np.ones(((self.NUM_DRONES, self.IMG_RES[1], self.IMG_RES[0])))
-            self.seg = np.zeros(((self.NUM_DRONES, self.IMG_RES[1], self.IMG_RES[0])))
-            if self.IMG_CAPTURE_FREQ%self.PYB_STEPS_PER_CTRL != 0:
-                print("[ERROR] in BaseAviary.__init__(), PyBullet and control frequencies incompatible with the desired video capture frame rate ({:f}Hz)".format(self.IMG_FRAME_PER_SEC))
-                exit()
-            if self.RECORD:
-                for i in range(self.NUM_DRONES):
-                    os.makedirs(os.path.dirname(self.ONBOARD_IMG_PATH+"/drone_"+str(i)+"/"), exist_ok=True)
         #### Connect to PyBullet ###################################
         if self.GUI:
             #### With debug GUI ########################################
@@ -193,10 +173,12 @@ class MultiModelBaseAviary(gym.Env):
         else:
             print("[ERROR] invalid initial_xyzs in BaseAviary.__init__(), try initial_xyzs.reshape(NUM_DRONES,3)")
         if initial_rpys is None:
+            self._random_initial_rpy = True
             self.INIT_RPYS = np.zeros((self.NUM_DRONES, 3))
         elif np.array(initial_rpys).shape == (self.NUM_DRONES, 3):
             self.INIT_RPYS = initial_rpys
         else:
+            self._random_initial_rpy = False
             print("[ERROR] invalid initial_rpys in BaseAviary.__init__(), try initial_rpys.reshape(NUM_DRONES,3)")
         #### Create action and observation spaces ##################
         self.action_space = self._actionSpace()
@@ -343,6 +325,8 @@ class MultiModelBaseAviary(gym.Env):
             self.np_random = np.random.default_rng(seed)
         elif not hasattr(self, 'np_random'):
             self.np_random = np.random.default_rng()
+        if self._random_initial_rpy:
+            self.INIT_RPYS = self.np_random.uniform(-np.pi/30, np.pi/30, size=(self.NUM_DRONES, 3))
 
         p.resetSimulation(physicsClientId=self.CLIENT)
         opts = options if options is not None else {}
@@ -419,15 +403,6 @@ class MultiModelBaseAviary(gym.Env):
             # seg = ((seg-np.min(seg)) * 255 / (np.max(seg)-np.min(seg))).astype('uint8')
             # (Image.fromarray(np.reshape(seg, (h, w)))).save(self.IMG_PATH+"frame_"+str(self.FRAME_NUM)+".png")
             self.FRAME_NUM += 1
-            if self.VISION_ATTR:
-                for i in range(self.NUM_DRONES):
-                    self.rgb[i], self.dep[i], self.seg[i] = self._getDroneImages(i)
-                    #### Printing observation to PNG frames example ############
-                    self._exportImage(img_type=ImageType.RGB, # ImageType.BW, ImageType.DEP, ImageType.SEG
-                                    img_input=self.rgb[i],
-                                    path=self.ONBOARD_IMG_PATH+"/drone_"+str(i)+"/",
-                                    frame_num=int(self.step_counter/self.IMG_CAPTURE_FREQ)
-                                    )
         #### Read the GUI's input parameters #######################
         if self.GUI and self.USER_DEBUG:
             current_input_switch = p.readUserDebugParameter(self.INPUT_SWITCH, physicsClientId=self.CLIENT)
@@ -632,11 +607,8 @@ class MultiModelBaseAviary(gym.Env):
                 self._showDroneLocalAxes(i)
         #### Disable collisions between drones' and the ground plane
         #### E.g., to start a drone at [0,0,0] #####################
-        # for i in range(self.NUM_DRONES):
-            # p.setCollisionFilterPair(bodyUniqueIdA=self.PLANE_ID, bodyUniqueIdB=self.DRONE_IDS[i], linkIndexA=-1, linkIndexB=-1, enableCollision=0, physicsClientId=self.CLIENT)
-        if self.OBSTACLES:
-            self._addObstacles()
-    
+        for i in range(self.NUM_DRONES):
+            p.setCollisionFilterPair(bodyUniqueIdA=self.PLANE_ID, bodyUniqueIdB=self.DRONE_IDS[i], linkIndexA=-1, linkIndexB=-1, enableCollision=0, physicsClientId=self.CLIENT)
     ################################################################################
 
     def _updateAndStoreKinematicInformation(self):

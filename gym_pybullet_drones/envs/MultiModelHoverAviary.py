@@ -1,10 +1,15 @@
 import numpy as np
+import pybullet as p
 
 from gym_pybullet_drones.envs.MultiModelRLAviary import MultiModelRLAviary
 from gym_pybullet_drones.utils.enums import DroneModel, Physics, ActionType, ObservationType, ModelResamplePolicy
 
 class MultiModelHoverAviary(MultiModelRLAviary):
     """Single agent RL problem: hover at position, with multiple candidate drone models."""
+
+    # Penalize angular rate and tilt from vertical (body z vs world +z); yaw-free.
+    REWARD_W_OMEGA = 1.0
+    REWARD_W_TILT = 12.0
 
     ################################################################################
 
@@ -19,7 +24,6 @@ class MultiModelHoverAviary(MultiModelRLAviary):
                  ctrl_freq: int = 30,
                  gui=False,
                  record=False,
-                 obs: ObservationType=ObservationType.KIN,
                  act: ActionType=ActionType.RPM
                  ):
         """Initialization of a single agent multi-model RL environment.
@@ -46,18 +50,15 @@ class MultiModelHoverAviary(MultiModelRLAviary):
             Whether to use PyBullet's GUI.
         record : bool, optional
             Whether to save a video of the simulation.
-        obs : ObservationType, optional
-            The type of observation space (kinematic information or vision)
         act : ActionType, optional
             The type of action space (1 or 3D; RPMS, thurst and torques, or waypoint with PID control)
 
         """
         self.TARGET_POS = np.array([0,0,1])
-        self.EPISODE_LEN_SEC = 8
+        self.EPISODE_LEN_SEC = 4
         super().__init__(drone_models=drone_models,
                          model_resample_policy=model_resample_policy,
                          include_model_index_in_obs=include_model_index_in_obs,
-                         num_drones=1,
                          initial_xyzs=initial_xyzs,
                          initial_rpys=initial_rpys,
                          physics=physics,
@@ -65,7 +66,6 @@ class MultiModelHoverAviary(MultiModelRLAviary):
                          ctrl_freq=ctrl_freq,
                          gui=gui,
                          record=record,
-                         obs=obs,
                          act=act
                          )
 
@@ -74,6 +74,9 @@ class MultiModelHoverAviary(MultiModelRLAviary):
     def _computeReward(self):
         """Computes the current reward value.
 
+        Shaped as negative penalties: small angular velocity and body z aligned with
+        world +z (via rotation matrix from quaternion), without penalizing yaw.
+
         Returns
         -------
         float
@@ -81,8 +84,13 @@ class MultiModelHoverAviary(MultiModelRLAviary):
 
         """
         state = self._getDroneStateVector(0)
-        ret = max(0, 2 - np.linalg.norm(self.TARGET_POS-state[0:3])**4)
-        return ret
+        quat = state[3:7]
+        ang_vel = state[13:16]
+        rot = np.array(p.getMatrixFromQuaternion(quat)).reshape(3, 3)
+        uz_world_z = float(np.clip(rot[2, 2], -1.0, 1.0))
+        tilt_gap = 1.0 - uz_world_z
+        omega_sq = float(np.dot(ang_vel, ang_vel))
+        return -self.REWARD_W_OMEGA * omega_sq - self.REWARD_W_TILT * tilt_gap
 
     ################################################################################
 
@@ -96,10 +104,14 @@ class MultiModelHoverAviary(MultiModelRLAviary):
 
         """
         state = self._getDroneStateVector(0)
-        if np.linalg.norm(self.TARGET_POS-state[0:3]) < .0001:
+        if np.linalg.norm(state[7:9]) <= .001:
             return True
         else:
             return False
+        # if np.linalg.norm(self.TARGET_POS - state[0:3]) < .1:
+        #     return True
+        # else:
+        #     return False
 
     ################################################################################
 
@@ -114,7 +126,7 @@ class MultiModelHoverAviary(MultiModelRLAviary):
         """
         state = self._getDroneStateVector(0)
         if (abs(state[0]) > 1.5 or abs(state[1]) > 1.5 or state[2] > 2.0
-             or abs(state[7]) > .4 or abs(state[8]) > .4
+             or abs(state[7]) > 0.4 or abs(state[8]) > 0.4
         ):
             return True
         if self.step_counter/self.PYB_FREQ > self.EPISODE_LEN_SEC:

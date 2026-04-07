@@ -26,7 +26,6 @@ class MultiModelRLAviary(MultiModelBaseAviary):
                  ctrl_freq: int = 240,
                  gui=False,
                  record=False,
-                 obs: ObservationType=ObservationType.KIN,
                  act: ActionType=ActionType.RPM
                  ):
         """Initialization of a generic single-agent multi-model RL environment.
@@ -57,8 +56,6 @@ class MultiModelRLAviary(MultiModelBaseAviary):
             Whether to use PyBullet's GUI.
         record : bool, optional
             Whether to save a video of the simulation.
-        obs : ObservationType, optional
-            The type of observation space (kinematic information or vision)
         act : ActionType, optional
             The type of action space (1 or 3D; RPMS, thurst and torques, waypoint or velocity with PID control; etc.)
 
@@ -68,8 +65,6 @@ class MultiModelRLAviary(MultiModelBaseAviary):
         self.ACTION_BUFFER_SIZE = int(ctrl_freq//2)
         self.action_buffer = deque(maxlen=self.ACTION_BUFFER_SIZE)
         ####
-        vision_attributes = True if obs == ObservationType.RGB else False
-        self.OBS_TYPE = obs
         self.ACT_TYPE = act
         #### Create integrated controllers (one per candidate model for PID-style actions) ##
         if act in [ActionType.PID, ActionType.VEL, ActionType.ONE_D_PID]:
@@ -86,43 +81,8 @@ class MultiModelRLAviary(MultiModelBaseAviary):
                          ctrl_freq=ctrl_freq,
                          gui=gui,
                          record=record,
-                         obstacles=True,
                          user_debug_gui=False,
-                         vision_attributes=vision_attributes,
                          )
-    ################################################################################
-
-    def _addObstacles(self):
-        """Add obstacles to the environment.
-
-        Only if the observation is of type RGB, 4 landmarks are added.
-        Overrides BaseAviary's method.
-
-        """
-        if self.OBS_TYPE == ObservationType.RGB:
-            p.loadURDF("block.urdf",
-                       [1, 0, .1],
-                       p.getQuaternionFromEuler([0, 0, 0]),
-                       physicsClientId=self.CLIENT
-                       )
-            p.loadURDF("cube_small.urdf",
-                       [0, 1, .1],
-                       p.getQuaternionFromEuler([0, 0, 0]),
-                       physicsClientId=self.CLIENT
-                       )
-            p.loadURDF("duck_vhacd.urdf",
-                       [-1, 0, .1],
-                       p.getQuaternionFromEuler([0, 0, 0]),
-                       physicsClientId=self.CLIENT
-                       )
-            p.loadURDF("teddy_vhacd.urdf",
-                       [0, -1, .1],
-                       p.getQuaternionFromEuler([0, 0, 0]),
-                       physicsClientId=self.CLIENT
-                       )
-        else:
-            pass
-
     ################################################################################
 
     def _actionSpace(self):
@@ -131,7 +91,7 @@ class MultiModelRLAviary(MultiModelBaseAviary):
         Returns
         -------
         spaces.Box
-            A Box of size NUM_DRONES x 4, 3, or 1, depending on the action type.
+            A Box of size 4 or 1, depending on the action type.
 
         """
         if self.ACT_TYPE == ActionType.RPM:
@@ -172,36 +132,35 @@ class MultiModelRLAviary(MultiModelBaseAviary):
 
     def _observationSpace(self):
         """Returns the observation space of the environment."""
-        if self.OBS_TYPE == ObservationType.RGB:
-            return spaces.Box(low=0,
-                              high=255,
-                              shape=(self.NUM_DRONES, self.IMG_RES[1], self.IMG_RES[0], 4), dtype=np.uint8)
-        elif self.OBS_TYPE == ObservationType.KIN:
-            ############################################################
-            lo = -np.inf
-            hi = np.inf
-            obs_lower_bound = np.array([[lo,lo,0, lo,lo,lo,lo,lo,lo,lo,lo,lo] for i in range(self.NUM_DRONES)])
-            obs_upper_bound = np.array([[hi,hi,hi,hi,hi,hi,hi,hi,hi,hi,hi,hi] for i in range(self.NUM_DRONES)])
-            #### Add action buffer to observation space ################
-            act_lo = -1
-            act_hi = +1
-            for i in range(self.ACTION_BUFFER_SIZE):
-                if self.ACT_TYPE == ActionType.RPM:
-                    obs_lower_bound = np.hstack([obs_lower_bound, np.array([[act_lo,act_lo,act_lo,act_lo] for i in range(self.NUM_DRONES)])])
-                    obs_upper_bound = np.hstack([obs_upper_bound, np.array([[act_hi,act_hi,act_hi,act_hi] for i in range(self.NUM_DRONES)])])
-                elif self.ACT_TYPE == ActionType.ONE_D_RPM:
-                    obs_lower_bound = np.hstack([obs_lower_bound, np.array([[act_lo] for i in range(self.NUM_DRONES)])])
-                    obs_upper_bound = np.hstack([obs_upper_bound, np.array([[act_hi] for i in range(self.NUM_DRONES)])])
-            if self.include_model_index_in_obs:
-                #### One column per candidate model (one-hot); size follows NUM_MODELS, not NUM_DRONES
-                model_low = np.zeros((self.NUM_DRONES, self.NUM_MODELS), dtype=np.float64)
-                model_high = np.ones((self.NUM_DRONES, self.NUM_MODELS), dtype=np.float64)
-                obs_lower_bound = np.hstack([obs_lower_bound, model_low])
-                obs_upper_bound = np.hstack([obs_upper_bound, model_high])
-            return spaces.Box(low=obs_lower_bound, high=obs_upper_bound, dtype=np.float32)
-            ############################################################
-        else:
-            print("[ERROR] in MultiModelRLAviary._observationSpace()")
+        lo = -np.inf
+        hi = np.inf
+        obs_lower_bound = np.array([[lo,lo,lo,
+                                     lo,lo,lo,
+                                     #lo,lo,lo,
+                                     #lo,lo,lo
+                                     ] for i in range(self.NUM_DRONES)])
+        obs_upper_bound = np.array([[hi,hi,hi,
+                                     hi,hi,hi,
+                                     #hi,hi,hi,
+                                     #hi,hi,hi
+                                     ] for i in range(self.NUM_DRONES)])
+        #### Add action buffer to observation space ################
+        act_lo = -1
+        act_hi = +1
+        for i in range(self.ACTION_BUFFER_SIZE):
+            if self.ACT_TYPE == ActionType.RPM:
+                obs_lower_bound = np.hstack([obs_lower_bound, np.array([[act_lo,act_lo,act_lo,act_lo] for i in range(self.NUM_DRONES)])])
+                obs_upper_bound = np.hstack([obs_upper_bound, np.array([[act_hi,act_hi,act_hi,act_hi] for i in range(self.NUM_DRONES)])])
+            elif self.ACT_TYPE == ActionType.ONE_D_RPM:
+                obs_lower_bound = np.hstack([obs_lower_bound, np.array([[act_lo] for i in range(self.NUM_DRONES)])])
+                obs_upper_bound = np.hstack([obs_upper_bound, np.array([[act_hi] for i in range(self.NUM_DRONES)])])
+        if self.include_model_index_in_obs:
+            #### One column per candidate model (one-hot); size follows NUM_MODELS, not NUM_DRONES
+            model_low = np.zeros((self.NUM_DRONES, self.NUM_MODELS), dtype=np.float64)
+            model_high = np.ones((self.NUM_DRONES, self.NUM_MODELS), dtype=np.float64)
+            obs_lower_bound = np.hstack([obs_lower_bound, model_low])
+            obs_upper_bound = np.hstack([obs_upper_bound, model_high])
+        return spaces.Box(low=obs_lower_bound, high=obs_upper_bound, dtype=np.float32)
 
     ################################################################################
 
@@ -215,32 +174,20 @@ class MultiModelRLAviary(MultiModelBaseAviary):
 
     def _computeObs(self):
         """Returns the current observation of the environment."""
-        if self.OBS_TYPE == ObservationType.RGB:
-            if self.step_counter%self.IMG_CAPTURE_FREQ == 0:
-                for i in range(self.NUM_DRONES):
-                    self.rgb[i], self.dep[i], self.seg[i] = self._getDroneImages(i,
-                                                                                 segmentation=False
-                                                                                 )
-                    if self.RECORD:
-                        self._exportImage(img_type=ImageType.RGB,
-                                          img_input=self.rgb[i],
-                                          path=self.ONBOARD_IMG_PATH+"drone_"+str(i),
-                                          frame_num=int(self.step_counter/self.IMG_CAPTURE_FREQ)
-                                          )
-            return np.array([self.rgb[i] for i in range(self.NUM_DRONES)]).astype('float32')
-        elif self.OBS_TYPE == ObservationType.KIN:
-            obs_12 = np.zeros((self.NUM_DRONES,12))
-            for i in range(self.NUM_DRONES):
-                obs = self._getDroneStateVector(i)
-                obs_12[i, :] = np.hstack([obs[0:3], obs[7:10], obs[10:13], obs[13:16]]).reshape(12,)
-            ret = np.array([obs_12[i, :] for i in range(self.NUM_DRONES)]).astype('float32')
-            for i in range(self.ACTION_BUFFER_SIZE):
-                ret = np.hstack([ret, np.array([self.action_buffer[i][j, :] for j in range(self.NUM_DRONES)])])
-            if self.include_model_index_in_obs:
-                ret = np.hstack([ret, self._active_model_one_hot()])
-            return ret
-        else:
-            print("[ERROR] in MultiModelRLAviary._computeObs()")
+        obs_12 = np.zeros((self.NUM_DRONES,6))
+        for i in range(self.NUM_DRONES):
+            obs = self._getDroneStateVector(i)
+            obs_12[i, :] = np.hstack([#obs[0:3],
+                                      obs[7:10],
+                                      #obs[10:13],
+                                      obs[13:16]
+                                      ]).reshape(6,)
+        ret = np.array([obs_12[i, :] for i in range(self.NUM_DRONES)]).astype('float32')
+        for i in range(self.ACTION_BUFFER_SIZE):
+            ret = np.hstack([ret, np.array([self.action_buffer[i][j, :] for j in range(self.NUM_DRONES)])])
+        if self.include_model_index_in_obs:
+            ret = np.hstack([ret, self._active_model_one_hot()])
+        return ret
 
     ################################################################################
 

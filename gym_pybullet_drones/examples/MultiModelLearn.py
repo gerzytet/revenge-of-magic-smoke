@@ -36,19 +36,20 @@ from stable_baselines3.common.evaluation import evaluate_policy
 from gym_pybullet_drones.utils.Logger import Logger
 from gym_pybullet_drones.envs.MultiModelHoverAviary import MultiModelHoverAviary
 from gym_pybullet_drones.utils.utils import sync, str2bool
-from gym_pybullet_drones.utils.enums import ObservationType, ActionType, DroneModel, ModelResamplePolicy
+from gym_pybullet_drones.utils.enums import ActionType, DroneModel, ModelResamplePolicy
 
 DEFAULT_GUI = True
 DEFAULT_RECORD_VIDEO = False
 DEFAULT_OUTPUT_FOLDER = 'results'
 DEFAULT_COLAB = False
 
-DEFAULT_OBS = ObservationType('kin') # 'kin' or 'rgb'
-DEFAULT_ACT = ActionType('one_d_rpm') # 'rpm' or 'pid' or 'vel' or 'one_d_rpm' or 'one_d_pid'
+DEFAULT_ACT = ActionType('rpm') # 'rpm' or 'pid' or 'vel' or 'one_d_rpm' or 'one_d_pid'
 
 DEFAULT_DRONE_MODELS = (
-    DroneModel.CF2X, DroneModel.CF2P, DroneModel.RACE,
-    DroneModel.A, DroneModel.B, DroneModel.C, DroneModel.D, DroneModel.E,
+    DroneModel.A, DroneModel.B, DroneModel.C, DroneModel.D, DroneModel.E
+)
+DEFAULT_DRONE_VALIDATION_MODELS = (
+    DroneModel.CF2X, DroneModel.CF2P, DroneModel.RACE, 
 )
 DEFAULT_INCLUDE_MODEL_INDEX_IN_OBS = True
 DEFAULT_FIRST_RESET_ONLY = False
@@ -66,7 +67,6 @@ def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=D
         drone_models=list(DEFAULT_DRONE_MODELS),
         model_resample_policy=policy,
         include_model_index_in_obs=include_model_index_in_obs,
-        obs=DEFAULT_OBS,
         act=DEFAULT_ACT,
     )
 
@@ -84,13 +84,27 @@ def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=D
     #### Train the model #######################################
     model = PPO('MlpPolicy',
                 train_env,
+                learning_rate=0.0003,
+                n_steps=2048,
+                batch_size=64,
+                n_epochs=10,
+                gamma=0.99,
+                gae_lambda=0.95,
+                clip_range=0.2,
+                clip_range_vf=None,
+                normalize_advantage=True,
+                ent_coef=0.0,
+                vf_coef=0.5,
+                max_grad_norm=0.5,
+                use_sde=False,
+                sde_sample_freq=-1,
                 verbose=1)
 
     #### Target cumulative rewards (problem-dependent) ##########
     if DEFAULT_ACT == ActionType.ONE_D_RPM:
-        target_reward = 474.
+        target_reward = 935.
     else:
-        target_reward = 467.
+        target_reward = -.01
     callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=target_reward,
                                                      verbose=1)
     eval_callback = EvalCallback(eval_env,
@@ -101,7 +115,7 @@ def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=D
                                  eval_freq=int(1000),
                                  deterministic=True,
                                  render=False)
-    model.learn(total_timesteps=int(1e7) if local else int(1e2),
+    model.learn(total_timesteps=int(1e6) if local else int(1e2),
                 callback=eval_callback,
                 log_interval=100)
 
@@ -150,13 +164,13 @@ def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=D
     if not os.path.exists(rollout_root):
         os.makedirs(rollout_root)
 
-    for model_idx, dm in enumerate(DEFAULT_DRONE_MODELS):
+    for model_idx, dm in enumerate(DEFAULT_DRONE_VALIDATION_MODELS):
         print('[INFO] Rollout for drone model:', dm.value, '(index', model_idx, ')')
         test_env = MultiModelHoverAviary(gui=gui,
                                          record=record_video,
                                          **multimodel_kwargs)
         logger = Logger(logging_freq_hz=int(test_env.CTRL_FREQ),
-                    num_drones=1,
+                    #num_drones=1,
                     output_folder=os.path.join(rollout_root, dm.value),
                     colab=colab
                     )
@@ -173,16 +187,16 @@ def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=D
             act2 = action.squeeze()
             print("Model", dm.value, "| Obs:", obs, "\tAction", action, "\tReward:", reward,
                   "\tTerminated:", terminated, "\tTruncated:", truncated)
-            if DEFAULT_OBS == ObservationType.KIN:
-                logger.log(drone=0,
-                    timestamp=i/test_env.CTRL_FREQ,
-                    state=np.hstack([obs2[0:3],
+
+            logger.log(drone=0,
+                       timestamp=i/test_env.CTRL_FREQ,
+                       state=np.hstack([obs2[0:3],
                                         np.zeros(4),
                                         obs2[3:15],
                                         act2
                                         ]),
-                    control=np.zeros(12)
-                    )
+                       control=np.zeros(12)
+                       )
             test_env.render()
             print(terminated)
             sync(i, start, test_env.CTRL_TIMESTEP)
@@ -190,7 +204,7 @@ def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=D
                 obs, _ = test_env.reset(seed=42, options=reset_opts)
         test_env.close()
 
-        if plot and DEFAULT_OBS == ObservationType.KIN:
+        if plot:
             kinematic_plot_path = os.path.join(logger.OUTPUT_FOLDER, f'kinematic_rollout_{dm.value}.png')
             logger.plot(title='Rollout: {}'.format(dm.value), save_path=kinematic_plot_path)
             print('[INFO] Saved rollout kinematic plot:', kinematic_plot_path)
