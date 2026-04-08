@@ -49,7 +49,7 @@ DEFAULT_USER_DEBUG_GUI = False
 DEFAULT_OBSTACLES = True
 DEFAULT_SIMULATION_FREQ_HZ = 240
 DEFAULT_CONTROL_FREQ_HZ = 48
-DEFAULT_DURATION_SEC = 4
+DEFAULT_DURATION_SEC = 6
 DEFAULT_TARGET_HEIGHT_M = 0.02
 DEFAULT_OUTPUT_FOLDER = 'results'
 DEFAULT_COLAB = False
@@ -70,6 +70,9 @@ def run(
         output_folder=DEFAULT_OUTPUT_FOLDER,
         colab=DEFAULT_COLAB
         ):
+    
+    filename = f'save-pid-{str(drone)}-'+datetime.now().strftime("%m.%d.%Y_%H.%M.%S")
+        
     #### Initialize the simulation #############################
     # Spaced along X so multiple drones do not start collocated.
 
@@ -101,7 +104,7 @@ def run(
     #### Initialize the logger #################################
     logger = Logger(logging_freq_hz=control_freq_hz,
                     num_drones=num_drones,
-                    output_folder=output_folder,
+                    output_folder=os.path.join(output_folder, filename),
                     colab=colab
                     )
 
