@@ -28,8 +28,6 @@ def _get_time_axis(data: np.lib.npyio.NpzFile, n: int) -> np.ndarray:
     """Return a 1D time axis aligned with samples."""
     if "t" in data.files:
         t = np.asarray(data["t"]).reshape(-1)
-        if t.shape[0] != n:
-            raise ValueError(f"t has length {t.shape[0]} but states has n={n}")
         return t
     if "timestamps" in data.files:
         ts = np.asarray(data["timestamps"]).reshape(-1)
@@ -37,8 +35,6 @@ def _get_time_axis(data: np.lib.npyio.NpzFile, n: int) -> np.ndarray:
             return ts
     if "logging_freq_hz" in data.files:
         freq = float(np.asarray(data["logging_freq_hz"]).reshape(()))
-        if freq <= 0:
-            raise ValueError(f"logging_freq_hz must be > 0, got {freq}")
         return np.arange(0, n / freq, 1.0 / freq)
     return np.arange(n, dtype=float)
 
@@ -61,7 +57,7 @@ def attitude_errors(
 
 
 def summarize_errors(e_roll: np.ndarray, e_pitch: np.ndarray, e_yaw: np.ndarray) -> dict:
-    """Mean absolute error and RMSE per axis (radians)."""
+    """Mean / max absolute error and RMSE per axis (radians)."""
     names = ("roll", "pitch", "yaw")
     errs = (e_roll, e_pitch, e_yaw)
     out = {}
@@ -69,6 +65,7 @@ def summarize_errors(e_roll: np.ndarray, e_pitch: np.ndarray, e_yaw: np.ndarray)
         ae = np.abs(e)
         out[name] = {
             "mean_abs_error_rad": float(np.mean(ae)),
+            "max_abs_error_rad": float(np.max(ae)),
             "rmse_rad": float(np.sqrt(np.mean(e ** 2))),
             "n_samples": int(e.shape[0]),
         }
@@ -148,6 +145,7 @@ def main(argv: list[str] | None = None) -> int:
             s = summary[axis]
             print(
                 f"  {axis:5s}  mean |error| = {s['mean_abs_error_rad']:.6f} rad  "
+                f"max |error| = {s['max_abs_error_rad']:.6f} rad  "
                 f"RMSE = {s['rmse_rad']:.6f} rad"
             )
 
