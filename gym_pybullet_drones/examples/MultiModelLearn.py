@@ -15,7 +15,11 @@ Notes
 This is a minimal working example integrating multi-model hover with stable-baselines3.
 
 After training, the script runs a separate PyBullet rollout and saves ``Logger.plot()`` output
-for each entry in ``DEFAULT_DRONE_MODELS`` as ``<run>/rollouts/<model_name>/kinematic_rollout.png``.
+for each entry in ``DEFAULT_DRONE_VALIDATION_MODELS`` as
+``<run>/rollouts/<model_name>/kinematic_rollout_<model_name>.png``.
+The same series shown in those plots are saved as NumPy archives
+``kinematic_rollout_<model_name>.npz`` (``timestamps``, ``states``, ``controls``, ``t``,
+``logging_freq_hz``) in the same folder.
 The training eval curve is saved as ``<run>/training_eval_reward.png`` under the same run folder
 (typically under ``results/``). Use
 ``reset(..., options={'active_model_idx': k})`` to pin the active URDF while keeping the
@@ -208,6 +212,20 @@ def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=D
             kinematic_plot_path = os.path.join(logger.OUTPUT_FOLDER, f'kinematic_rollout_{dm.value}.png')
             logger.plot(title='Rollout: {}'.format(dm.value), save_path=kinematic_plot_path)
             print('[INFO] Saved rollout kinematic plot:', kinematic_plot_path)
+
+        n = int(logger.counters[0])
+        freq = int(logger.LOGGING_FREQ_HZ)
+        t_axis = np.arange(0, n / freq, 1.0 / freq)
+        rollout_npz_path = os.path.join(logger.OUTPUT_FOLDER, f'kinematic_rollout_{dm.value}.npz')
+        np.savez_compressed(
+            rollout_npz_path,
+            timestamps=logger.timestamps[0, :n],
+            states=logger.states[0, :, :n],
+            controls=logger.controls[0, :, :n],
+            t=t_axis,
+            logging_freq_hz=freq,
+        )
+        print('[INFO] Saved rollout kinematic data:', rollout_npz_path)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Multi-model hover reinforcement learning example')
