@@ -1,3 +1,27 @@
+## CAP5610 README
+This is a fork of gym-pybullet-drones with our changes.
+
+Please only look at the following files:
+- gym_pybullet_drones/examples/MultiModelLearn.py
+  - Trains the RL model to stabilize a quadcopter using our dataset
+- gym_pybullet_drones/examples/pid-vertical.py
+  - Runs the same experiment as MultiModelLearn, but using a PID controller. Our control experiment.
+- rollout_rpy_error.py
+  - Prints out the information used for our evaluation using the saved data. Including mean and max error.
+- gym_pybullet_drones/examples/kinematic_rollout_to_svg.py
+  - Generates svg plots using the saved data from the experiments.
+- gym_pybullet_drones/utils/enums.py
+  - Modified to include our drone dataset (Drones A-E)
+- gym_pybullet_drones/envs/MultiModelHoverAviary.py
+  - Includes our reward function and episode stopping conditions
+  - Modified from HoverAviary
+- gym_pybullet_drones/envs/MultiModelRLAviary.py
+  - Includes the definitions for the observation and action space
+  - Modified from BaseRLAviary
+- gym_pybullet_drones/envs/MultiModelBaseAviary.py
+  - Has the physics simulation and other RL training stuff.
+  - Modified from BaseAviary
+  
 > [!TIP]
 > For research work with **symbolic dynamics and constraints**, also try [`safe-control-gym`](https://github.com/utiasDSL/safe-control-gym)
 >
