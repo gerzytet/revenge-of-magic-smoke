@@ -211,8 +211,9 @@ class Logger(object):
             If True, converts logged RPM into PWM values (for Crazyflies).
         title : str, optional
             If set, used as the figure suptitle.
-        save_path : str, optional
-            If set, the figure is written to this path (parent dirs are created).
+        save_path : str | list[str] | tuple[str, ...], optional
+            If set, the figure is written to this path (or to each path, if a sequence
+            is provided). Parent dirs are created.
         show : bool, optional
             When ``save_path`` is set, whether to call ``plt.show()`` after saving.
             Ignored when ``save_path`` is None (then COLAB vs. interactive applies as before).
@@ -380,10 +381,12 @@ class Logger(object):
                 if self.NUM_DRONES > 1:
                     ax.legend(loc='upper right', frameon=True, fontsize=8)
         if save_path is not None:
-            d = os.path.dirname(save_path)
-            if d:
-                os.makedirs(d, exist_ok=True)
-            fig.savefig(save_path, dpi=180, bbox_inches='tight')
+            save_paths = save_path if isinstance(save_path, (list, tuple)) else [save_path]
+            for p in save_paths:
+                d = os.path.dirname(p)
+                if d:
+                    os.makedirs(d, exist_ok=True)
+                fig.savefig(p, dpi=180, bbox_inches='tight')
             if show:
                 plt.show()
             plt.close(fig)

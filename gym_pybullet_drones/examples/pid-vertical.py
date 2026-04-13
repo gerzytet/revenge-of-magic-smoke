@@ -175,9 +175,10 @@ def run(
 
     #### Plot the simulation results ###########################
     if plot:
-        kinematic_plot_path = os.path.join(logger.OUTPUT_FOLDER, f'kinematic_rollout_{drone_label}.png')
-        logger.plot(save_path=kinematic_plot_path)
-        print('[INFO] Saved rollout kinematic plot:', kinematic_plot_path)
+        base = os.path.join(logger.OUTPUT_FOLDER, f'kinematic_rollout_{drone_label}')
+        kinematic_plot_paths = [f'{base}.png', f'{base}.svg']
+        logger.plot(save_path=kinematic_plot_paths)
+        print('[INFO] Saved rollout kinematic plots:', ', '.join(kinematic_plot_paths))
 
 if __name__ == "__main__":
     #### Define and parse (optional) arguments for the script ##

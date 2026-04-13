@@ -209,9 +209,10 @@ def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=D
         test_env.close()
 
         if plot:
-            kinematic_plot_path = os.path.join(logger.OUTPUT_FOLDER, f'kinematic_rollout_{dm.value}.png')
-            logger.plot(title='Rollout: {}'.format(dm.value), save_path=kinematic_plot_path)
-            print('[INFO] Saved rollout kinematic plot:', kinematic_plot_path)
+            base = os.path.join(logger.OUTPUT_FOLDER, f'kinematic_rollout_{dm.value}')
+            kinematic_plot_paths = [f'{base}.png', f'{base}.svg']
+            logger.plot(title='Rollout: {}'.format(dm.value), save_path=kinematic_plot_paths)
+            print('[INFO] Saved rollout kinematic plots:', ', '.join(kinematic_plot_paths))
 
         n = int(logger.counters[0])
         freq = int(logger.LOGGING_FREQ_HZ)
