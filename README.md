@@ -6,7 +6,7 @@ Please only look at the following files:
   - Trains the RL model to stabilize a quadcopter using our dataset
 - gym_pybullet_drones/examples/pid-vertical.py
   - Runs the same experiment as MultiModelLearn, but using a PID controller. Our control experiment.
-- rollout_rpy_error.py
+- gym_pybullet_drones/examples/rollout_rpy_error.py
   - Prints out the information used for our evaluation using the saved data. Including mean and max error.
 - gym_pybullet_drones/examples/kinematic_rollout_to_svg.py
   - Generates svg plots using the saved data from the experiments.
