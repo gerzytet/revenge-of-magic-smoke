@@ -55,7 +55,7 @@ class MultiModelHoverAviary(MultiModelRLAviary):
 
         """
         self.TARGET_POS = np.array([0,0,1])
-        self.EPISODE_LEN_SEC = 4
+        self.EPISODE_LEN_SEC = 10
         super().__init__(drone_models=drone_models,
                          model_resample_policy=model_resample_policy,
                          include_model_index_in_obs=include_model_index_in_obs,
@@ -90,7 +90,10 @@ class MultiModelHoverAviary(MultiModelRLAviary):
         uz_world_z = float(np.clip(rot[2, 2], -1.0, 1.0))
         tilt_gap = 1.0 - uz_world_z
         omega_sq = float(np.dot(ang_vel, ang_vel))
-        return -self.REWARD_W_OMEGA * omega_sq - self.REWARD_W_TILT * tilt_gap
+        dist = abs(np.linalg.norm(self.TARGET_POS-state[0:3]))
+        hover_reward = max(0, 2 - dist**1.5 - dist*0.05 - state[7]*0.02 - state[8]*0.02)
+        return hover_reward
+        #return -self.REWARD_W_OMEGA * omega_sq - self.REWARD_W_TILT * tilt_gap
 
     ################################################################################
 

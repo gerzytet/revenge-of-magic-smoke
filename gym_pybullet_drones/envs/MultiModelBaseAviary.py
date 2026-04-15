@@ -3,6 +3,7 @@ from sys import platform
 import time
 import collections
 from datetime import datetime
+import random
 import xml.etree.ElementTree as etxml
 import pkg_resources
 from PIL import Image
@@ -109,7 +110,8 @@ class MultiModelBaseAviary(gym.Env):
             self.M, self.L, self.J[0,0], self.J[1,1], self.J[2,2], self.KF, self.KM, self.THRUST2WEIGHT_RATIO, self.MAX_SPEED_KMH, self.GND_EFF_COEFF, self.PROP_RADIUS, self.DRAG_COEFF[0], self.DRAG_COEFF[2], self.DW_COEFF_1, self.DW_COEFF_2, self.DW_COEFF_3))
         #### Options ###############################################
         self.GUI = gui
-        self.RECORD = record
+        self.REAL_RECORD = record
+        self.RECORD = True
         self.PHYSICS = physics
         self.USER_DEBUG = user_debug_gui
         self.OUTPUT_FOLDER = output_folder
@@ -631,6 +633,11 @@ class MultiModelBaseAviary(gym.Env):
         The format of the video output is .mp4, if GUI is True, or .png, otherwise.
 
         """
+        if random.randint(1, 10) == 1:
+            self.RECORD = self.REAL_RECORD
+        else:
+            self.RECORD = False
+
         if self.RECORD and self.GUI:
             self.VIDEO_ID = p.startStateLogging(loggingType=p.STATE_LOGGING_VIDEO_MP4,
                                                 fileName=os.path.join(self.OUTPUT_FOLDER, "video-"+datetime.now().strftime("%m.%d.%Y_%H.%M.%S")+".mp4"),

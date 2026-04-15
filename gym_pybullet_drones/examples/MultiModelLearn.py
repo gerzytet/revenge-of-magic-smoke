@@ -43,7 +43,7 @@ from gym_pybullet_drones.utils.utils import sync, str2bool
 from gym_pybullet_drones.utils.enums import ActionType, DroneModel, ModelResamplePolicy
 
 DEFAULT_GUI = True
-DEFAULT_RECORD_VIDEO = False
+DEFAULT_RECORD_VIDEO = True
 DEFAULT_OUTPUT_FOLDER = 'results'
 DEFAULT_COLAB = False
 
@@ -59,7 +59,7 @@ DEFAULT_INCLUDE_MODEL_INDEX_IN_OBS = True
 DEFAULT_FIRST_RESET_ONLY = False
 
 def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=DEFAULT_COLAB, record_video=DEFAULT_RECORD_VIDEO, local=True,
-        first_reset_only=DEFAULT_FIRST_RESET_ONLY, include_model_index_in_obs=DEFAULT_INCLUDE_MODEL_INDEX_IN_OBS):
+        first_reset_only=DEFAULT_FIRST_RESET_ONLY, include_model_index_in_obs=DEFAULT_INCLUDE_MODEL_INDEX_IN_OBS, input_model=None):
 
     filename = os.path.join(output_folder, 'save-multimodel-'+datetime.now().strftime("%m.%d.%Y_%H.%M.%S"))
     if not os.path.exists(filename):
@@ -79,36 +79,40 @@ def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=D
                              n_envs=1,
                              seed=0
                              )
-    eval_env = MultiModelHoverAviary(**multimodel_kwargs)
+    eval_env = MultiModelHoverAviary(**multimodel_kwargs, record=True)
 
     #### Check the environment's spaces ########################
     print('[INFO] Action space:', train_env.action_space)
     print('[INFO] Observation space:', train_env.observation_space)
 
     #### Train the model #######################################
-    model = PPO('MlpPolicy',
-                train_env,
-                learning_rate=0.0003,
-                n_steps=2048,
-                batch_size=64,
-                n_epochs=10,
-                gamma=0.99,
-                gae_lambda=0.95,
-                clip_range=0.2,
-                clip_range_vf=None,
-                normalize_advantage=True,
-                ent_coef=0.0,
-                vf_coef=0.5,
-                max_grad_norm=0.5,
-                use_sde=False,
-                sde_sample_freq=-1,
-                verbose=1)
+    if input_model is None:
+        model = PPO('MlpPolicy',
+                    train_env,
+                    learning_rate=0.0001,
+                    n_steps=2048,
+                    batch_size=64,
+                    n_epochs=10,
+                    gamma=0.99,
+                    gae_lambda=0.95,
+                    clip_range=0.2,
+                    clip_range_vf=None,
+                    normalize_advantage=True,
+                    ent_coef=0.0,
+                    vf_coef=0.5,
+                    max_grad_norm=0.5,
+                    use_sde=False,
+                    sde_sample_freq=-1,
+                    verbose=1)
+    else:
+        model = PPO.load(input_model)
+        model.set_env(train_env)
 
     #### Target cumulative rewards (problem-dependent) ##########
     if DEFAULT_ACT == ActionType.ONE_D_RPM:
         target_reward = 935.
     else:
-        target_reward = -.01
+        target_reward = 20
     callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=target_reward,
                                                      verbose=1)
     eval_callback = EvalCallback(eval_env,
@@ -236,7 +240,8 @@ if __name__ == '__main__':
     parser.add_argument('--colab',              default=DEFAULT_COLAB,         type=bool,          help='Whether example is being run by a notebook (default: False)', metavar='')
     parser.add_argument('--first_reset_only',   default=DEFAULT_FIRST_RESET_ONLY, type=str2bool, help='If true, ModelResamplePolicy.FIRST_RESET_ONLY; else EACH_RESET (default: False)', metavar='')
     parser.add_argument('--no_model_index_in_obs', action='store_true',        help='Set include_model_index_in_obs=False (default: include index)')
+    parser.add_argument('--input', type=str, default=None)
     ARGS = parser.parse_args()
     include_idx = not ARGS.no_model_index_in_obs
     run(output_folder=ARGS.output_folder, gui=ARGS.gui, plot=True, colab=ARGS.colab, record_video=ARGS.record_video, local=True,
-        first_reset_only=ARGS.first_reset_only, include_model_index_in_obs=include_idx)
+        first_reset_only=ARGS.first_reset_only, include_model_index_in_obs=include_idx, input_model=ARGS.input)
