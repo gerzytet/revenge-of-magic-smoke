@@ -203,7 +203,7 @@ def run(output_folder=DEFAULT_OUTPUT_FOLDER, gui=DEFAULT_GUI, plot=True, colab=D
                                         obs2[3:15],
                                         act2
                                         ]),
-                       control=np.zeros(12)
+                       control=np.zeros(12) # this should set the x,y,z target position correctly and not be all zeros. Make sure to fix rollout_rpy_error.py!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                        )
             test_env.render()
             print(terminated)

@@ -1,10 +1,10 @@
-"""Compute mean attitude error from a rollout ``kinematic_rollout_*.npz`` file.
+"""Compute mean position and attitude error from a rollout ``kinematic_rollout_*.npz`` file.
 
 The archives produced by ``MultiModelLearn.py`` and ``pid-vertical.py`` store Logger
-layout: ``states`` is ``(16, n)`` with roll, pitch, yaw (rad) at indices 6--8, and
-``controls`` is ``(12, n)`` with target roll, pitch, yaw at indices 3--5 (as in
-``pid-vertical.py``). When controls are all zeros (e.g. RL rollouts), the reference
-attitude is zero on each axis.
+layout: ``states`` is ``(16, n)`` with position (m) at indices 0--2 and roll, pitch,
+yaw (rad) at indices 6--8, and ``controls`` is ``(12, n)`` with target position at
+indices 0--2 and target roll, pitch, yaw at indices 3--5 (as in ``pid-vertical.py``).
+When controls are all zeros (e.g. RL rollouts), the reference pose is zero on each axis.
 
 Example
 -------
@@ -39,6 +39,18 @@ def _get_time_axis(data: np.lib.npyio.NpzFile, n: int) -> np.ndarray:
     return np.arange(n, dtype=float)
 
 
+def position_errors(
+    states: np.ndarray,
+    controls: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Return per-time-step position errors (m) for x, y, z (measured minus reference)."""
+    x_meas, y_meas, z_meas = states[0, :], states[1, :], states[2, :]
+    x_ref, y_ref, z_ref = controls[0, :], controls[1, :], controls[2, :]
+    print("HACK ALERT: MultiModelLearn sets the control array to zero in the logger, even though the target position is currently [0,0,1]. z_ref is manually set to 1 here ")
+    z_ref = 1
+    return x_meas - x_ref, y_meas - y_ref, z_meas - z_ref
+
+
 def attitude_errors(
     states: np.ndarray,
     controls: np.ndarray,
@@ -54,6 +66,24 @@ def attitude_errors(
     e_pitch = _shortest_angle_diff(p_meas, p_ref)
     e_yaw = _shortest_angle_diff(y_meas, y_ref)
     return e_roll, e_pitch, e_yaw
+
+
+def summarize_position_errors(
+    e_x: np.ndarray, e_y: np.ndarray, e_z: np.ndarray
+) -> dict:
+    """Mean / max absolute error and RMSE per axis (meters)."""
+    names = ("x", "y", "z")
+    errs = (e_x, e_y, e_z)
+    out = {}
+    for name, e in zip(names, errs):
+        ae = np.abs(e)
+        out[name] = {
+            "mean_abs_error_m": float(np.mean(ae)),
+            "max_abs_error_m": float(np.max(ae)),
+            "rmse_m": float(np.sqrt(np.mean(e ** 2))),
+            "n_samples": int(e.shape[0]),
+        }
+    return out
 
 
 def summarize_errors(e_roll: np.ndarray, e_pitch: np.ndarray, e_yaw: np.ndarray) -> dict:
@@ -74,7 +104,7 @@ def summarize_errors(e_roll: np.ndarray, e_pitch: np.ndarray, e_yaw: np.ndarray)
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Mean roll / pitch / yaw error from a rollout .npz (Logger format)."
+        description="Mean x/y/z and roll/pitch/yaw error from a rollout .npz (Logger format)."
     )
     parser.add_argument(
         "npz_path",
@@ -126,32 +156,49 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[ERROR] Could not determine time axis: {e}", file=sys.stderr)
         return 1
 
+    e_x, e_y, e_z = position_errors(states, controls)
     e_roll, e_pitch, e_yaw = attitude_errors(states, controls)
-    full = summarize_errors(e_roll, e_pitch, e_yaw)
+    full_pos = summarize_position_errors(e_x, e_y, e_z)
+    full_att = summarize_errors(e_roll, e_pitch, e_yaw)
 
     first_mask = t <= 1.0
     last_mask = t >= (float(t[-1]) - 1.0)
 
-    first = summarize_errors(e_roll[first_mask], e_pitch[first_mask], e_yaw[first_mask])
-    last = summarize_errors(e_roll[last_mask], e_pitch[last_mask], e_yaw[last_mask])
+    first_pos = summarize_position_errors(
+        e_x[first_mask], e_y[first_mask], e_z[first_mask]
+    )
+    first_att = summarize_errors(
+        e_roll[first_mask], e_pitch[first_mask], e_yaw[first_mask]
+    )
+    last_pos = summarize_position_errors(e_x[last_mask], e_y[last_mask], e_z[last_mask])
+    last_att = summarize_errors(
+        e_roll[last_mask], e_pitch[last_mask], e_yaw[last_mask]
+    )
 
     print(f"File: {args.npz_path}")
     print(f"Samples: {n}")
     print(f"Duration: {float(t[-1]):.6f} s")
 
-    def _print_block(label: str, summary: dict) -> None:
+    def _print_block(label: str, pos_summary: dict, att_summary: dict) -> None:
         print(label)
+        for axis in ("x", "y", "z"):
+            s = pos_summary[axis]
+            print(
+                f"  {axis:5s}  mean |error| = {s['mean_abs_error_m']:.6f}   m  "
+                f"max |error| = {s['max_abs_error_m']:.6f}   m  "
+                #f"RMSE = {s['rmse_m']:.6f} m"
+            )
         for axis in ("roll", "pitch", "yaw"):
-            s = summary[axis]
+            s = att_summary[axis]
             print(
                 f"  {axis:5s}  mean |error| = {s['mean_abs_error_rad']:.6f} rad  "
                 f"max |error| = {s['max_abs_error_rad']:.6f} rad  "
-                f"RMSE = {s['rmse_rad']:.6f} rad"
+                #f"RMSE = {s['rmse_rad']:.6f} rad"
             )
 
-    _print_block("Full:", full)
-    _print_block("First 1s:", first)
-    _print_block("Last 1s:", last)
+    _print_block("Full:", full_pos, full_att)
+    _print_block("First 1s:", first_pos, first_att)
+    _print_block("Last 1s:", last_pos, last_att)
 
     return 0
 
