@@ -47,7 +47,9 @@ def position_errors(
     x_meas, y_meas, z_meas = states[0, :], states[1, :], states[2, :]
     x_ref, y_ref, z_ref = controls[0, :], controls[1, :], controls[2, :]
     print("HACK ALERT: MultiModelLearn sets the control array to zero in the logger, even though the target position is currently [0,0,1]. z_ref is manually set to 1 here ")
-    z_ref = 1
+    print("HACK ALERT: pid-vertical properly sets the control array, so z_ref is only set if z_ref is initially zero")
+    if z_ref.all(0):
+        z_ref = 1
     return x_meas - x_ref, y_meas - y_ref, z_meas - z_ref
 
 
