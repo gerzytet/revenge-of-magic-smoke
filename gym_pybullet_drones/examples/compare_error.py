@@ -113,6 +113,43 @@ def _print_block(
         )
 
 
+def _print_block2(
+        label: str,
+        full_att_a: dict[str, Any],
+        first_att_a: dict[str, Any],
+        last_att_a: dict[str, Any],
+        full_att_b: dict[str, Any],
+        first_att_b: dict[str, Any],
+        last_att_b: dict[str, Any],
+        full_pos_a: dict[str, Any],
+        first_pos_a: dict[str, Any],
+        last_pos_a: dict[str, Any],
+        full_pos_b: dict[str, Any],
+        first_pos_b: dict[str, Any],
+        last_pos_b: dict[str, Any],
+) -> None:
+    assert(label == "mean" or label == "max")
+    print(label.capitalize()+":")
+    rad = f"{label}_abs_error_rad"
+    met = f"{label}_abs_error_m"
+    print("[DoF], [Full 6s], [First 1s], [Last 1s],")
+    for axis in ("roll",):
+        full = _signed_relative(full_att_a[axis][rad], full_att_b[axis][rad])
+        first = _signed_relative(first_att_a[axis][rad], first_att_b[axis][rad])
+        last = _signed_relative(last_att_a[axis][rad], last_att_b[axis][rad])
+        print(
+            f"[{axis.capitalize()}], [{full:+.4g}%], [{first:+.4g}%], [{last:+.4g}%],"
+        )
+
+    for axis in ("x", "z"):
+        full = _signed_relative(full_pos_a[axis][met], full_pos_b[axis][met])
+        first = _signed_relative(first_pos_a[axis][met], first_pos_b[axis][met])
+        last = _signed_relative(last_pos_a[axis][met], last_pos_b[axis][met])
+        print(
+            f"[{axis.capitalize()}], [{full:+.4g}%], [{first:+.4g}%], [{last:+.4g}%],"
+        )
+    print("")
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
@@ -129,6 +166,12 @@ def main(argv: list[str] | None = None) -> int:
         "npz_b",
         type=str,
         help="Path to second rollout (B); used as reference scale in the denominator.",
+    )
+    parser.add_argument(
+        "--typst_format",
+        default=True,
+        type=bool,
+        help="Prints using a typst table format for copying",
     )
     args = parser.parse_args(argv)
 
@@ -171,25 +214,77 @@ def main(argv: list[str] | None = None) -> int:
         "positive => first file (A) has smaller error on that statistic."
     )
 
-    windows: list[tuple[str, np.ndarray]] = [
-        ("Full:", np.ones(n, dtype=bool)),
-        ("First 1s:", first_mask),
-        ("Last 1s:", last_mask),
-    ]
+    full_mask = np.ones(n, dtype=bool)
 
-    for label, mask in windows:
-        sums_a = _summarize_window(
-            e_x_a, e_y_a, e_z_a, e_roll_a, e_pitch_a, e_yaw_a, mask
+    if not args.typst_format:
+        windows: list[tuple[str, np.ndarray]] = [
+            ("Full:", full_mask),
+            ("First 1s:", first_mask),
+            ("Last 1s:", last_mask),
+        ]
+
+        for label, mask in windows:
+            sums_a = _summarize_window(
+                e_x_a, e_y_a, e_z_a, e_roll_a, e_pitch_a, e_yaw_a, mask
+            )
+            sums_b = _summarize_window(
+                e_x_b, e_y_b, e_z_b, e_roll_b, e_pitch_b, e_yaw_b, mask
+            )
+            if sums_a is None or sums_b is None:
+                print(f"{label} (no samples in window)")
+                continue
+            pos_a, att_a = sums_a
+            pos_b, att_b = sums_b
+            _print_block(label, pos_a, att_a, pos_b, att_b)
+    else:
+        def sumwin_a(_mask):
+            return _summarize_window(
+                e_x_a, e_y_a, e_z_a, e_roll_a, e_pitch_a, e_yaw_a, _mask
+            )
+
+        def sumwin_b(_mask):
+            return _summarize_window(
+                e_x_b, e_y_b, e_z_b, e_roll_b, e_pitch_b, e_yaw_b, _mask
+            )
+
+        full_pos_a, full_att_a = sumwin_a(full_mask)
+        first_pos_a, first_att_a = sumwin_a(first_mask)
+        last_pos_a, last_att_a = sumwin_a(last_mask)
+        full_pos_b, full_att_b = sumwin_b(full_mask)
+        first_pos_b, first_att_b = sumwin_b(first_mask)
+        last_pos_b, last_att_b = sumwin_b(last_mask)
+
+        _print_block2(
+            "mean",
+            full_att_a,
+            first_att_a,
+            last_att_a,
+            full_att_b,
+            first_att_b,
+            last_att_b,
+            full_pos_a,
+            first_pos_a,
+            last_pos_a,
+            full_pos_b,
+            first_pos_b,
+            last_pos_b,
         )
-        sums_b = _summarize_window(
-            e_x_b, e_y_b, e_z_b, e_roll_b, e_pitch_b, e_yaw_b, mask
+
+        _print_block2(
+            "max",
+            full_att_a,
+            first_att_a,
+            last_att_a,
+            full_att_b,
+            first_att_b,
+            last_att_b,
+            full_pos_a,
+            first_pos_a,
+            last_pos_a,
+            full_pos_b,
+            first_pos_b,
+            last_pos_b,
         )
-        if sums_a is None or sums_b is None:
-            print(f"{label} (no samples in window)")
-            continue
-        pos_a, att_a = sums_a
-        pos_b, att_b = sums_b
-        _print_block(label, pos_a, att_a, pos_b, att_b)
 
     return 0
 

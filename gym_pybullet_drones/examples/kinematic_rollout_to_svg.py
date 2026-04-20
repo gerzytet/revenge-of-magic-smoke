@@ -28,19 +28,25 @@ import numpy as np
 from gym_pybullet_drones.utils.Logger import Logger
 
 # Mapping from human-friendly channel names to Logger.states indices and labels.
-CHANNELS: dict[str, tuple[int, str]] = {
-    "x": (0, "x (m)"),
-    "y": (1, "y (m)"),
-    "z": (2, "z (m)"),
-    "vx": (3, "vx (m/s)"),
-    "vy": (4, "vy (m/s)"),
-    "vz": (5, "vz (m/s)"),
-    "roll": (6, "roll (rad)"),
-    "pitch": (7, "pitch (rad)"),
-    "yaw": (8, "yaw (rad)"),
-    "wx": (9, "wx (rad/s)"),
-    "wy": (10, "wy (rad/s)"),
-    "wz": (11, "wz (rad/s)"),
+CHANNELS: dict[str, tuple[int, str, float]] = {
+    "x": (0, "x (m)", 1.0),
+    "y": (1, "y (m)", 1.0),
+    "z": (2, "z (m)", 1.0),
+    "vx": (3, "vx (m/s)", 1.0),
+    "vy": (4, "vy (m/s)", 1.0),
+    "vz": (5, "vz (m/s)", 1.0),
+    "roll": (6, "roll (rad)", 1.0),
+    "pitch": (7, "pitch (rad)", 1.0),
+    "yaw": (8, "yaw (rad)", 1.0),
+    "wx": (9, "wx (rad/s)", 1.0),
+    "wy": (10, "wy (rad/s)", 1.0),
+    "wz": (11, "wz (rad/s)", 1.0),
+    "roll_deg": (6, "roll (deg)", 180.0 / np.pi),
+    "pitch_deg": (7, "pitch (deg)", 180.0 / np.pi),
+    "yaw_deg": (8, "yaw (deg)", 180.0 / np.pi),
+    "wx_deg": (9, "wx (deg/s)", 180.0 / np.pi),
+    "wy_deg": (10, "wy (deg/s)", 180.0 / np.pi),
+    "wz_deg": (11, "wz (deg/s)", 180.0 / np.pi),
 }
 
 
@@ -104,9 +110,9 @@ def _plot_selected_channels(logger: Logger, save_path: str, channels: list[str])
         axs = [axs]
 
     for ax, name in zip(axs, channels):
-        idx, ylabel = CHANNELS[name]
+        idx, ylabel, multiplier = CHANNELS[name]
         for j in range(logger.NUM_DRONES):
-            ax.plot(t, logger.states[j, idx, :n], label=f"drone_{j}")
+            ax.plot(t, logger.states[j, idx, :n] * multiplier, label=f"drone_{j}")
         ax.set_ylabel(ylabel)
         ax.grid(True, alpha=0.6)
         if logger.NUM_DRONES > 1:

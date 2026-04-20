@@ -113,6 +113,13 @@ def main(argv: list[str] | None = None) -> int:
         type=str,
         help="Path to kinematic_rollout_*.npz",
     )
+    parser.add_argument(
+        "--typst_format",
+        type=bool,
+        default=True,
+        help="Prints using a typst table format for copying",
+    )
+        
     args = parser.parse_args(argv)
 
     try:
@@ -191,16 +198,39 @@ def main(argv: list[str] | None = None) -> int:
                 #f"RMSE = {s['rmse_m']:.6f} m"
             )
         for axis in ("roll", "pitch", "yaw"):
+            todeg = 180 / np.pi
             s = att_summary[axis]
             print(
-                f"  {axis:5s}  mean |error| = {s['mean_abs_error_rad']:.6f} rad  "
-                f"max |error| = {s['max_abs_error_rad']:.6f} rad  "
+                f"  {axis:5s}  mean |error| = {s['mean_abs_error_rad']*todeg:.6f} deg  "
+                f"max |error| = {s['max_abs_error_rad']*todeg:.6f} deg  "
                 #f"RMSE = {s['rmse_rad']:.6f} rad"
             )
 
-    _print_block("Full:", full_pos, full_att)
-    _print_block("First 1s:", first_pos, first_att)
-    _print_block("Last 1s:", last_pos, last_att)
+    def _print_block_2(label: str) -> None:
+        assert(label == "mean" or label == "max")
+        print(label.capitalize()+":")
+        rad = f"{label}_abs_error_rad"
+        met = f"{label}_abs_error_m"
+        print("[DoF], [Full 6s], [First 1s], [Last 1s],")
+        for axis in ("roll",):
+            todeg = 180 / np.pi
+            print(
+                f"[{axis.capitalize()}], [{full_att[axis][rad]*todeg:.4g}#sym.degree], [{first_att[axis][rad]*todeg:.4g}#sym.degree], [{last_att[axis][rad]*todeg:.4g}#sym.degree],"
+            )
+
+        for axis in ("x", "z"):
+            print(
+                f"[{axis.capitalize()}], [{full_pos[axis][met]:.4g} m], [{first_pos[axis][met]:.4g} m], [{last_pos[axis][met]:.4g} m],"
+            )
+        print("")
+
+    if not args.typst_format:
+        _print_block("Full:", full_pos, full_att)
+        _print_block("First 1s:", first_pos, first_att)
+        _print_block("Last 1s:", last_pos, last_att)
+    else:
+        _print_block_2("mean")
+        _print_block_2("max")
 
     return 0
 
