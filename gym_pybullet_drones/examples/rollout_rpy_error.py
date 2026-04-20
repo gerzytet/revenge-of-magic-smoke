@@ -206,12 +206,12 @@ def main(argv: list[str] | None = None) -> int:
                 #f"RMSE = {s['rmse_rad']:.6f} rad"
             )
 
-    def _print_block_2(label: str) -> None:
+    def _print_block_2(label: str, duration: float) -> None:
         assert(label == "mean" or label == "max")
         print(label.capitalize()+":")
         rad = f"{label}_abs_error_rad"
         met = f"{label}_abs_error_m"
-        print("[DoF], [Full 6s], [First 1s], [Last 1s],")
+        print(f"[DoF], [Full {duration:.2g}s], [First 1s], [Last 1s],")
         for axis in ("roll",):
             todeg = 180 / np.pi
             print(
@@ -229,8 +229,8 @@ def main(argv: list[str] | None = None) -> int:
         _print_block("First 1s:", first_pos, first_att)
         _print_block("Last 1s:", last_pos, last_att)
     else:
-        _print_block_2("mean")
-        _print_block_2("max")
+        _print_block_2("mean", t[-1])
+        _print_block_2("max", t[-1])
 
     return 0
 

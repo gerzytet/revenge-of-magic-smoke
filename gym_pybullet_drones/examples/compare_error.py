@@ -127,12 +127,13 @@ def _print_block2(
         full_pos_b: dict[str, Any],
         first_pos_b: dict[str, Any],
         last_pos_b: dict[str, Any],
+        duration: float,
 ) -> None:
     assert(label == "mean" or label == "max")
     print(label.capitalize()+":")
     rad = f"{label}_abs_error_rad"
     met = f"{label}_abs_error_m"
-    print("[DoF], [Full 6s], [First 1s], [Last 1s],")
+    print(f"[DoF], [Full {duration:.2g}s], [First 1s], [Last 1s],")
     for axis in ("roll",):
         full = _signed_relative(full_att_a[axis][rad], full_att_b[axis][rad])
         first = _signed_relative(first_att_a[axis][rad], first_att_b[axis][rad])
@@ -268,6 +269,7 @@ def main(argv: list[str] | None = None) -> int:
             full_pos_b,
             first_pos_b,
             last_pos_b,
+            t[-1],
         )
 
         _print_block2(
@@ -284,6 +286,7 @@ def main(argv: list[str] | None = None) -> int:
             full_pos_b,
             first_pos_b,
             last_pos_b,
+            t[-1],
         )
 
     return 0
