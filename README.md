@@ -23,6 +23,9 @@ Please only look at the following files:
 - gym_pybullet_drones/envs/MultiModelBaseAviary.py
   - Has the physics simulation and other RL training stuff.
   - Modified from BaseAviary
+
+For authorship details, open this folder with GitHub Desktop and view the git commit history for the hover branch (not the main branch!!).
+You can also go here [`https://github.com/gerzytet/revenge-of-magic-smoke`](https://github.com/gerzytet/revenge-of-magic-smoke). Select the hover branch to see the right commits.
   
 > [!TIP]
 > For research work with **symbolic dynamics and constraints**, also try [`safe-control-gym`](https://github.com/utiasDSL/safe-control-gym)
