@@ -10,6 +10,8 @@ Please only look at the following files:
   - Prints out the information used for our evaluation using the saved data. Including mean and max error.
 - gym_pybullet_drones/examples/kinematic_rollout_to_svg.py
   - Generates svg plots using the saved data from the experiments.
+- gym_pybullet_drones/examples/get_results.sh
+  - Prints the data from the experiements used for our paper
 - gym_pybullet_drones/utils/enums.py
   - Modified to include our drone dataset (Drones A-E)
 - gym_pybullet_drones/envs/MultiModelHoverAviary.py
